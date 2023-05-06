@@ -1,0 +1,404 @@
+---
+title: "Final Project"
+author: "Samita Prabhasavat"
+date: "3/29/2023"
+output: html_document
+---
+
+## General Setup
+
+```{r setup, include=FALSE}
+# Call libraries
+
+# For data cleaning
+library(janitor)
+
+# For data manipulation
+library(dplyr) 
+library(tidyverse)
+library(reshape2)
+library(dummy)
+
+# For data visualization
+library(knitr)
+library(ggplot2)
+library(GGally)
+library(corrplot)
+
+# For model training and testing
+library(caret)
+library(lmtest)
+library(car)
+```
+
+### Import Data
+
+```{r}
+# Import data that will be used in this analysis
+attrition_data <- read_csv('/Users/samitaprabhasavat/Desktop/Final Project/attrition.csv', show_col_types = FALSE)
+
+# See the first five rows of the dataset to see how the data looks like
+head(attrition_data, 5)
+```
+
+### Explore Data
+
+```{r}
+# Check the number of columns (variable)
+print('Number of columns: ')
+print(ncol(attrition_data))
+
+# Check the number of rows (observation)
+print('Number of rows: ')
+print(nrow(attrition_data))
+```
+
+```{r}
+# Check the structure of the dataset to see the number of observations recorded in each column
+str(attrition_data)
+```
+
+Observations:
+- There are 2940 observations and 34 columns in the dataset.
+- All the columns have 2940 non-null values, i.e., there are no missing values in the data.
+
+```{r}
+# Check the number of unique values in each column to see the number of subcategories in each column, especially for categorical variables
+sapply(attrition_data, n_distinct)
+```
+
+### Clean Data
+
+```{r}
+# Drop some columns that will not add any values to the analysis
+attrition_data <- attrition_data[, !names(attrition_data) %in% c('EmployeeNumber', 'Over18', 'StandardHours')]
+```
+
+Observations:
+- Employee number is an identifier which is unique for each employee and we can drop this column as it would not add any value to our analysis.
+- Over18 and StandardHours have only 1 unique value. We can drop these columns as they will not add any value to our analysis.
+- On the basis of number of unique values in each column and the data description, we can identify the continuous and categorical columns in the data.
+
+## Conduct Exploratory Data Analysis
+
+### Prepare Data
+
+```{r}
+# Create a list that contains all numerical variables in the dataset
+num_cols <- c('DailyRate', 'Age', 'DistanceFromHome', 'MonthlyIncome', 'MonthlyRate', 'PercentSalaryHike', 'TotalWorkingYears', 'YearsAtCompany', 'NumCompaniesWorked', 'HourlyRate', 'YearsInCurrentRole', 'YearsSinceLastPromotion', 'YearsWithCurrManager', 'TrainingTimesLastYear')
+
+# Create a list that contains all categorical variables in the dataset
+cat_cols <- c('Attrition', 'OverTime', 'BusinessTravel', 'Department', 'Education', 'EducationField', 'JobSatisfaction', 'EnvironmentSatisfaction', 'WorkLifeBalance', 'StockOptionLevel', 'Gender', 'PerformanceRating', 'JobInvolvement', 'JobLevel', 'JobRole', 'MaritalStatus', 'RelationshipSatisfaction')
+```
+
+### Univariate Analysis
+
+#### Univariate Analysis for Numerical Variable
+
+```{r}
+# Check summary statistics of numerical variables to see the distribution of each variable
+summary_table <- summary(attrition_data[, num_cols])
+
+# Display summary staitistics
+summary_table
+```
+
+Observations:
+- Average employee age is around 37 years. It has a high range, from 18 years to 60, indicating good age diversity in the organization.
+- At least 50% of the employees live within a 7 KM radius of the organization. However, there are some extreme values, given that the maximum value is 29 km.
+- The average monthly income of an employee is USD 6500. It has a high range of values from 1K-20K USD, which is to be expected for any organization's income distribution. There is a big difference between the 3rd quartile value (around USD 8400) and the maximum value (nearly USD 20000), showing that the company's highest earners have a disproportionately large income in comparison to the rest of the employees. Again, this is fairly common in most organizations.
+- The average salary hike of an employee is around 15%. At least 50% of employees got a salary hike of 14% or less, with the maximum salary hike being 25%.
+- The average number of years an employee is associated with the company is 7.
+On average, the number of years since an employee got a promotion is ~2.19. The majority of employees have been promoted since the last year.
+
+```{r}
+# Plot histogram to further investigate the distribution of each numerical variable
+for (i in num_cols) {
+  p <- ggplot(data = attrition_data) +
+    geom_histogram(mapping = aes(x = .data[[i]]), binwidth = 5) +
+    ggtitle(paste(i, "Histogram")) +
+    theme(plot.title = element_text(hjust = 40))
+  print(p)
+}
+```
+
+```{r}
+# Create histograms for all numerical variables with blue color and white background
+for (i in num_cols) {
+  plot(
+    ggplot(data = attrition_data) +
+      geom_histogram(mapping = aes(x = .data[[i]]), binwidth = 5, fill = "#4EB3D3") +
+      ggtitle(paste(i, "Histogram")) +
+      theme(
+        panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "gray", size = 0.25),
+        panel.grid.minor = element_blank(),
+        legend.position = "none",
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        axis.line = element_line(color = "black"),
+        axis.ticks.length = unit(0.25, "cm"),
+        axis.ticks.x = element_line(color = "black"),
+        axis.ticks.y = element_line(color = "black")
+      )
+  )
+}
+```
+
+Observations:
+- The age distribution is close to a normal distribution with the majority of employees between the ages of 25 and 50.
+- The percentage salary hike is skewed to the right, implying that employees are obtaining smaller increases.
+- MonthlyIncome and TotalWorkingYears are skewed to the right, indicating that the majority of workers are in entry / mid-level positions in the organization.
+- DistanceFromHome also has a right skewed distribution, meaning most employees live close to work but there are a few that live further away.
+- On average, an employee has worked at 2.5 companies. Most employees have worked at only 1 company.
+- The YearsAtCompany variable distribution shows a good proportion of workers with 10+ years, indicating a significant number of loyal employees at the organization.
+- The YearsInCurrentRole distribution has three peaks at 0, 2, and 7. There are a few employees that have even stayed in the same role for 15 years and more.
+- The YearsSinceLastPromotion variable distribution indicates that some employees have not received a promotion in 10-15 years and are still working in the organization. These employees are assumed to be high work-experience employees in upper-management roles, such as co-founders, C-suite employees etc.
+- The distributions of DailyRate, HourlyRate and MonthlyRate appear to be uniform and do not provide much information. It could be that daily rate refers to the income earned per extra day worked while hourly rate could refer to the same concept applied for extra hours worked per day. Since these rates tend to be broadly similar for multiple employees in the same department, that explains the uniform distribution they show.
+
+#### Univariate Analysis for Categorical Variable
+
+```{r}
+# Check the percentage of each subcategories in each categorical variable
+for (i in cat_cols) {
+  print(prop.table(table(attrition_data[[i]])))
+  cat(rep("*", 40), "\n")
+}
+```
+
+Observations:
+- The employee attrition rate is 16%.
+- Around 28% of the employees are working overtime. This number appears to be on the higher side, and might indicate a stressed employee work-life.
+- 71% of the employees have traveled rarely, while around 19% have to travel frequently.
+- Around 73% of the employees come from an educational background in the Life Sciences and Medical fields.
+- Over 65% of employees work in the Research & Development department of the organization.
+- Nearly 40% of the employees have low (1) or medium-low (2) job satisfaction and environment satisfaction in the organization, indicating that the morale of the company appears to be somewhat low.
+- Over 30% of the employees show low (1) to medium-low (2) job involvement.
+- Over 80% of the employees either have none or very less stock options.
+- In terms of performance ratings, none of the employees have rated lower than 3 (excellent). - About 85% of employees have a performance rating equal to 3 (excellent), while the remaining have a rating of 4 (outstanding). This could either mean that the majority of employees are top performers, or the more likely scenario is that the organization could be highly lenient with its performance appraisal process.
+
+### Bivariate Analysis
+
+#### Bivariate Analysis for Numerical Variables
+
+```{r}
+# Check the relationship between mean of numerical variables grouped by attrition rate
+attrition_data %>% 
+  group_by(Attrition) %>% 
+  summarize(across(num_cols, mean))
+```
+
+Observations:
+- Employees leaving the company have a nearly 30% lower average income and 30% lesser work experience than those who are not. These could be the employees looking to explore new options and/or increase their salary with a company switch.
+- Employees showing attrition also tend to live 16% further from the office than those who are not. The longer commute to and from work could mean they have to spend more time/money every day, and this could be leading to job dissatisfaction and wanting to leave the organization.
+
+```{r}
+# Plot a correlation matrix to observe pearson correlation between each pair of numerical variables
+# Compute correlation matrix for numerical variables
+cor_matrix <- cor(attrition_data[num_cols])
+
+# Generate correlation heatmap
+ggcorr(cor_matrix, 
+       palette = "YlGnBu", 
+       label = TRUE, 
+       label_size = 3, 
+       hjust = 0.5, 
+       size = 2)
+```
+
+Observations:
+- Total work experience, monthly income, years at company and years with current manager are highly correlated with each other and with employee age which is easy to understand as these variables show an increase with age for most employees.
+- Years at company and years in current role are correlated with years since last promotion which means that the company is not giving promotions at the right time.
+
+```{r}
+# Plot a scatter plot matrix to see the relationship between each pair of variables
+pairs(attrition_data[num_cols], pch = 19)
+```
+
+```{r}
+# Create scatter plots for numerical variables against Attrition
+for (col in num_cols) {
+  p <- ggplot(attrition_data, aes_string(x = col, y = "Attrition")) +
+    geom_point() +
+    ggtitle(paste(col, "vs. Attrition")) +
+    xlab(col) +
+    ylab("Attrition") +
+    theme_bw()
+  print(p)
+}
+```
+#### Bivariate Analysis for Categorical Variables
+
+```{r}
+# Plot bar graphs to check the relationship between attrition rate and categorical variables
+for (i in cat_cols) {
+  if (i != 'Attrition') {
+    # Create a cross-tabulation table and calculate percentages
+    table <- table(attrition_data[[i]], attrition_data[['Attrition']]) %>% 
+      prop.table(margin = 1) * 100
+    
+    # Plot the stacked bar chart
+    plot <- ggplot(data = as.data.frame(table), aes(x = Var1, y = Freq, fill = Var2)) +
+      geom_bar(stat = "identity") +
+      labs(x = i, y = "Percentage Attrition %") +
+      theme_minimal() +
+      theme(legend.position = "bottom")
+    
+    # Display the plot
+    print(plot)
+  }
+}
+```
+
+Observations:
+- Employees working overtime have more than a 30% chance of attrition, which is very high compared to the 10% chance of attrition for employees who do not work extra hours.
+- As seen earlier, the majority of employees work for the R&D department. The chance of attrition there is ~15%
+- Employees working as sales representatives have an attrition rate of around 40% while HRs and Technicians have an attrition rate of around 25%. The sales and HR departments have higher attrition rates in comparison to an academic department like Research & Development, an observation that makes intuitive sense keeping in mind the differences in those job profiles. - The high-pressure and incentive-based nature of Sales and Marketing roles may be contributing to their higher attrition rates.
+- The lower the employee's job involvement, the higher their attrition chances appear to be, with 1-rated JobInvolvement employees attriting at 35%. The reason for this could be that employees with lower job involvement might feel left out or less valued and have already started to explore new options, leading to a higher attrition rate.
+- Employees at a lower job level also attrite more, with 1-rated JobLevel employees showing a nearly 25% chance of attrition. These may be young employees who tend to explore more options in the initial stages of their careers.
+- A low work-life balance rating clearly leads employees to attrite, 30% of those in the 1-rated category show attrition.
+
+```{r}
+# Create scatter plots for categorical variables against Attrition
+for (col in cat_cols) {
+  p <- ggplot(attrition_data, aes_string(x = col, y = "Attrition")) +
+    geom_jitter(width = 0.2, height = 0.1) +
+    ggtitle(paste(col, "vs. Attrition")) +
+    xlab(col) +
+    ylab("Attrition") +
+    theme_bw()
+  print(p)
+}
+```
+
+## Model Building
+
+### Data Preparation
+
+```{r}
+# Convert categorical variables to dummy variables
+dummy_df <- data.frame(model.matrix(~ BusinessTravel + Department + Education + EducationField + JobSatisfaction + EnvironmentSatisfaction + WorkLifeBalance + StockOptionLevel + Gender + PerformanceRating + JobInvolvement + JobLevel + JobRole + MaritalStatus + RelationshipSatisfaction - 1, data = attrition_data))
+
+# Drop original categorical columns
+attrition_data <- attrition_data[, !names(attrition_data) %in% c('BusinessTravel', 'Department', 'Education', 'EducationField', 'JobSatisfaction', 'EnvironmentSatisfaction', 'WorkLifeBalance', 'StockOptionLevel', 'Gender', 'PerformanceRating', 'JobInvolvement', 'JobLevel', 'JobRole', 'MaritalStatus', 'RelationshipSatisfaction')]
+
+# Merge dummy variables back into original dataframe
+attrition_data <- cbind(attrition_data, dummy_df)
+```
+
+```{r}
+# Separate dependent variable from other variables
+Y <- attrition_data$Attrition
+Y <- ifelse(Y == "Yes", 1, 0)
+
+X <- subset(attrition_data, select = -Attrition)
+```
+
+```{r}
+# Set seed for reproducibility
+set.seed(1)
+
+# Split the data into train and test set
+trainIndex <- createDataPartition(Y, p = 0.7, list = FALSE, times = 1)
+X_train <- X[trainIndex, ]
+X_test <- X[-trainIndex, ]
+y_train <- Y[trainIndex]
+y_test <- Y[-trainIndex]
+```
+
+```{r}
+# Scale the data using z-score to scale the data into a fixed range which will prevent the algorithm from being biased toward higher weight variable
+preproc <- preProcess(X_train, method = c("center", "scale"))
+X_train_scaled <- predict(preproc, X_train)
+X_train_scaled <- as.data.frame(X_train_scaled)
+
+X_test_scaled <- predict(preproc, X_test)
+X_test_scaled <- as.data.frame(X_test_scaled)
+```
+
+### Logistic Regression Model
+
+```{r}
+# Build the logistic regression model
+model <- glm(y_train ~ ., data = X_train_scaled, family = binomial(link = "logit"))
+
+# See the summary of the model built using logistic regression on train dataset
+summary(model)
+```
+
+```{r}
+# Exponentiate the regression coefficient
+exp_coef <- exp(model$coefficients)
+
+# Print the exponentiated coefficients
+print(exp_coef)
+```
+
+#### Check Assumptions
+
+```{r}
+# Assumption 1: Binary logistic regression requires the dependent variable to be categorical and binary
+
+# Check if the dependent variable 'Attrition' is categorical
+str(attrition_data)
+```
+
+Observations:
+- The values recorded in 'Attrition' column are in words, not numbers. Therefore, the variable 'Attrition' is categorical variable.
+
+```{r}
+# Check if the dependent variable 'Attrition' is binary
+length(unique(attrition_data$Attrition))
+```
+
+Observations:
+- There are two possible values in the 'Attrition' column; yes or no. Therefore, the dependent variable is binary.
+
+```{r}
+# Assumption 2: Logistic regression requires the observations to be independent of each other
+
+#Check observation dependency using Durbin-Watson test
+dwtest(model)
+```
+
+Observations:
+- The DW test statistic is 1.9001, which is closer to 2, indicating that there is little evidence of positive or negative autocorrelation in the residuals.
+- The p-value of 0.3304 indicates that there is no significant evidence to reject the null hypothesis that there is no autocorrelation in the residuals at the significance level of 0.05.
+- Therefore, it can be concluded that the assumption of independence of observations is not violated.
+
+```{r}
+# Assumption 3: Logistic regression requires little to no multicollinearity among the independent variables
+# Calculate VIF values
+vif_values <- vif(model)
+
+# View the VIF values
+vif_values
+```
+
+Observations:
+- There are multicollinearities in the model. Therefore, assumption 3 is violated.
+
+#### Re-build model
+
+```{r}
+str(X_train_scaled)
+```
+
+```{r}
+# Find column indices of perfectly correlated variables
+corr_mat <- cor(X_train_scaled[, -1])
+highly_corr_cols <- findCorrelation(corr_mat, cutoff = 0.99)
+
+# Remove perfectly correlated variables from data frame
+X_train_scaled <- X_train_scaled[, -highly_corr_cols]
+```
+
+```{r}
+# Remove the perfectly correlated variables from the model
+model2 <- glm(y_train ~ ., data = X_train_scaled[, -highly_correlated], family = binomial(link = "logit"))
+```
+
+
+
+
+
