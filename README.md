@@ -21,3 +21,5 @@ This project aims to identify the primary factors that drive employee attrition,
 ## Results and Interpretations
 Key findings reveal that working overtime is the strongest predictor of higher attrition rates, while working experience and the time spent in current roles and with managers could play significant roles in lower attrition rates. 
 The larger implications of our analysis emphasize the importance of organizations fostering a supportive and engaging work environment to ensure employee retention. Addressing work-life balance concerns, offering growth opportunities, and nurturing strong manager-employee relationships are essential in reducing attrition rates and contributing to the organization's long-term success.
+
+This project is a part of the course [INF412: Data Analytics]([https://ischool.utoronto.ca/course/data-analytics-informed-decisions-with-data/]) under the [Faculty of Information](https://ischool.utoronto.ca/) at the [University of Toronto.](https://www.utoronto.ca/)
